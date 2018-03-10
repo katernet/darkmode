@@ -3,7 +3,7 @@
 ## Dark mode at sunrise
 ## Solar times pulled from Yahoo Weather API
 ## Requires 'dark-mode' Homebrew package
-## Author: /u/katernet ## Version 1.0
+## Author: /u/katernet ## Version 1.1
 
 ## Global variables ##
 darkdir=~/Documents/Darkmode
@@ -13,16 +13,21 @@ plistS=~/Library/LaunchAgents/local.$hostname.Darkmode.sunset.plist
 
 ## Functions ##
 
-# Set dark mode - Sunrise = off Sunrise = on
+# Set dark mode - Sunrise = off Sunset = on
 darkMode() {
 	case $1 in
 		off) 
-			if test "$(command -v /usr/local/bin/dark-mode)"; then # If dark-mode installed
-				/usr/local/bin/dark-mode off # Turn dark mode off
-				echo "$(date +"%D %T")" Sunrise: Dark mode off >> "$darkdir"/log.txt # Log theme change
-			else
-				echo "$(date +"%D %T")" Darkmode: dark-mode Homebrew package not installed! Theme not set. >> "$darkdir"/log.txt # Log dark-mode not installed
-			fi
+			# Disable dark mode
+			osascript -e '
+			tell application "System Events"
+				tell appearance preferences
+					if dark mode is true then
+						set dark mode to false
+						do shell script "echo $(date +\"%D %T\") Sunrise: Dark mode off >> '"$darkdir"'/log.txt"
+					end if
+				end tell
+			end tell
+			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
 				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
 			fi
@@ -36,12 +41,17 @@ darkMode() {
 			fi
 			;;
 		on)
-			if test "$(command -v /usr/local/bin/dark-mode)"; then # If dark-mode installed
-				/usr/local/bin/dark-mode on # Turn dark mode off
-				echo "$(date +"%D %T")" Sunset: Dark mode on >> $darkdir/log.txt # Log theme change
-			else
-				echo "$(date +"%D %T")" Darkmode: dark-mode Homebrew package not installed! Theme not set. >> "$darkdir"/log.txt # Log dark-mode not installed
-			fi
+			# Enable dark mode
+			osascript -e '
+			tell application "System Events"
+				tell appearance preferences
+					if dark mode is false then
+						set dark mode to true
+						do shell script "echo $(date +\"%D %T\") Sunrise: Dark mode on >> '"$darkdir"'/log.txt"
+					end if
+				end tell
+			end tell
+			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
 				osascript -e 'tell application "Alfred 3" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred default theme
 			fi
