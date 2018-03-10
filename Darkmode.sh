@@ -2,7 +2,6 @@
 #
 ## Dark mode at sunrise
 ## Solar times pulled from Yahoo Weather API
-## Requires 'dark-mode' Homebrew package
 ## Author: /u/katernet ## Version 1.1
 
 ## Global variables ##
