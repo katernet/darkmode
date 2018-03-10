@@ -64,6 +64,7 @@ darkMode() {
 			fi
 			;;
 	esac
+
 }
 
 # Solar query
