@@ -6,8 +6,10 @@ This shell script pulls sunrise and sunset data from the Yahoo weather API and a
 
 ### Usage
 
+Set script as executable and run
 ```
-./Darkmode.sh
+$ chmod a+x Darkmode.sh
+$ ./Darkmode.sh
 ```
  
 ### Notes
