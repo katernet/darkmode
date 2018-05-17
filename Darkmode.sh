@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-## Dark mode at sunrise
+## Dark mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: /u/katernet ## Version 1.1
+## Author: katernet ## Version 1.2
 
 ## Global variables ##
 darkdir=~/Documents/Darkmode
-hostname=$(hostname | sed "s/'//;s/ //") # Store hostname. Remove apostrophe and spaces if exist.
-plistR=~/Library/LaunchAgents/local.$hostname.Darkmode.sunrise.plist # Launch Agent plist locations
-plistS=~/Library/LaunchAgents/local.$hostname.Darkmode.sunset.plist
+macname=$(hostname | sed "s/'//;s/ //" | sed "s/.local//g") # Store hostname. Remove marks, spaces and local domain name
+plistR=~/Library/LaunchAgents/local.$macname.Darkmode.sunrise.plist # Launch Agent plist locations
+plistS=~/Library/LaunchAgents/local.$macname.Darkmode.sunset.plist
 
 ## Functions ##
 
@@ -18,11 +18,10 @@ darkMode() {
 		off) 
 			# Disable dark mode
 			osascript -e '
-			tell application "System Events"
+			tell application id "com.apple.systemevents"
 				tell appearance preferences
 					if dark mode is true then
 						set dark mode to false
-						do shell script "echo $(date +\"%D %T\") Sunrise: Dark mode off >> '"$darkdir"'/log.txt"
 					end if
 				end tell
 			end tell
@@ -33,26 +32,29 @@ darkMode() {
 			# Get sunset launch agent start interval time
 			plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
 			plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
-			if [ -z "$plistSH" ] && [ -z "$plistSM" ]; then # If plist solar times don't exist
+			if [ -z "$plistSH" ] && [ -z "$plistSM" ]; then # If plist solar time vars are empty
 				editPlist add "$setH" "$setM" "$plistS" # Run add solar time plist function
-			elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent and solar times differ
+			elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent times and solar times differ
 				editPlist update "$setH" "$setM" "$plistS" # Run update solar time plist function
+			fi
+			# Run solar query on first day of week
+			if [ "$(date +%u)" = 1 ]; then
+				solar
 			fi
 			;;
 		on)
 			# Enable dark mode
 			osascript -e '
-			tell application "System Events"
+			tell application id "com.apple.systemevents"
 				tell appearance preferences
 					if dark mode is false then
 						set dark mode to true
-						do shell script "echo $(date +\"%D %T\") Sunrise: Dark mode on >> '"$darkdir"'/log.txt"
 					end if
 				end tell
 			end tell
 			'
-			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred default theme
+			if ls /Applications/Alfred*.app >/dev/null 2>&1; then
+				osascript -e 'tell application "Alfred 3" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred dark theme
 			fi
 			# Get sunrise launch agent start interval
 			plistRH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistR" 2> /dev/null)
@@ -64,13 +66,12 @@ darkMode() {
 			fi
 			;;
 	esac
-
 }
 
 # Solar query
 solar() {
 	# Set location
-	# Get city and country from http://ipinfo.io
+	# Get city and nation from http://ipinfo.io
 	loc=$(curl -s ipinfo.io/geo | awk -F: '{print $2}' | awk 'FNR ==3 {print}' | sed 's/[", ]//g')
 	nat=$(curl -s ipinfo.io/geo | awk -F: '{print $2}' | awk 'FNR ==5 {print}' | sed 's/[", ]//g')
 	# Get solar times in 12H
@@ -79,17 +80,18 @@ solar() {
 	# Export times in 24H
 	date -jf "%I:%M %p" "${riseT}" +"%H:%M" 2> /dev/null > "$darkdir"/riseT
 	date -jf "%I:%M %p" "${setT}" +"%H:%M" 2> /dev/null > "$darkdir"/setT
-	echo "$(date +"%D %T")" Darkmode: Solar query exported >> "$darkdir"/log.txt
+	# Log
+	echo "$(date +"%d/%m/%y %T")" Darkmode: Solar query saved - Sunrise: "$(<"$darkdir"/riseT)" Sunset: "$(<"$darkdir"/setT)" >> "$darkdir"/darkmode.log
 }
 
-# Deploy launch agent
+# Deploy launch agents
 launch() {
 	shdir="$(cd "$(dirname "$0")" && pwd)" # Get script path
 	mkdir ~/Library/LaunchAgents 2> /dev/null; cd "$_" || return # Create LaunchAgents directory (if required) and cd there
-	# Setup plist
-	/usr/libexec/PlistBuddy -c "Add :Label string local.$hostname.Darkmode.sunrise" "$plistR" 1> /dev/null
+	# Setup launch agent plists
+	/usr/libexec/PlistBuddy -c "Add :Label string local.$macname.Darkmode.sunrise" "$plistR" 1> /dev/null
 	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/Darkmode.sh" "$plistR"
-	/usr/libexec/PlistBuddy -c "Add :Label string local.$hostname.Darkmode.sunset" "$plistS" 1> /dev/null
+	/usr/libexec/PlistBuddy -c "Add :Label string local.$macname.Darkmode.sunset" "$plistS" 1> /dev/null
 	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/Darkmode.sh" "$plistS"
 	# Load launch agents
 	launchctl load "$plistR"
@@ -103,7 +105,7 @@ editPlist() {
 			# Add solar times to launch agent plist
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Hour integer $2" "$4"
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Minute integer $3" "$4"
-			# Reload launchd job
+			# Reload launch agent
 			launchctl unload "$4"
 			launchctl load "$4"
 			;;
@@ -111,23 +113,23 @@ editPlist() {
 			# Update launch agent plist solar times
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Hour $2" "$4"
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Minute $3" "$4"
-			# Reload launchd job
+			# Reload launch agent
 			launchctl unload "$4"
 			launchctl load "$4"
 			;;
 	esac
 }
 
-# Logging
+# Error logging
 log() {
 	while IFS='' read -r line; do
-		echo "$(date +"%D %T") $line" >> "$darkdir"/log.txt
+		echo "$(date +"%D %T") $line" >> "$darkdir"/darkmode.log
 	done
 }
 
 ## Config ##
 
-# If Darkmode directory doesn't exist
+# Create Darkmode directory if doesn't exist
 if [ ! -d "$darkdir" ]; then
 	mkdir $darkdir
 	solar
@@ -136,14 +138,9 @@ fi
 # Error log
 exec 2> >(log)
 
-# If launch agents don't exist
+# Deploy launch agents if don't exist
 if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
 	launch
-fi
-
-# Run solar query on first day of week
-if [ "$(date +%u)" = 1 ]; then
-	solar
 fi
 
 # Get sunrise and sunset hrs and mins. Remove leading 0s with sed.
