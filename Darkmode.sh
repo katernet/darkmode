@@ -1,14 +1,13 @@
 #!/bin/bash
 #
-## Dark mode at sunset
+## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.2
+## Author: katernet ## Version 1.3
 
 ## Global variables ##
-darkdir=~/Documents/Darkmode
-macname=$(hostname | sed "s/'//;s/ //" | sed "s/.local//g") # Store hostname. Remove marks, spaces and local domain name
-plistR=~/Library/LaunchAgents/local.$macname.Darkmode.sunrise.plist # Launch Agent plist locations
-plistS=~/Library/LaunchAgents/local.$macname.Darkmode.sunset.plist
+darkdir=~/Documents/darkmode # darkmode directory
+plistR=~/Library/LaunchAgents/io.github.katernet.darkmode.sunrise.plist # Launch Agent plist locations
+plistS=~/Library/LaunchAgents/io.github.katernet.darkmode.sunset.plist
 
 ## Functions ##
 
@@ -74,14 +73,21 @@ solar() {
 	# Get city and nation from http://ipinfo.io
 	loc=$(curl -s ipinfo.io/geo | awk -F: '{print $2}' | awk 'FNR ==3 {print}' | sed 's/[", ]//g')
 	nat=$(curl -s ipinfo.io/geo | awk -F: '{print $2}' | awk 'FNR ==5 {print}' | sed 's/[", ]//g')
-	# Get solar times in 12H
+	# Get solar times
 	riseT=$(curl -s "https://query.yahooapis.com/v1/public/yql?q=select%20astronomy.sunrise%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22${loc}%2C%20${nat}%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys" | awk -F\" '{print $22}')
 	setT=$(curl -s "https://query.yahooapis.com/v1/public/yql?q=select%20astronomy.sunset%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22${loc}%2C%20${nat}%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys" | awk -F\" '{print $22}')
-	# Export times in 24H
-	date -jf "%I:%M %p" "${riseT}" +"%H:%M" 2> /dev/null > "$darkdir"/riseT
-	date -jf "%I:%M %p" "${setT}" +"%H:%M" 2> /dev/null > "$darkdir"/setT
+	# Convert times to 24H
+	riseT24=$(date -jf "%I:%M %p" "${riseT}" +"%H:%M" 2> /dev/null)
+	setT24=$(date -jf "%I:%M %p" "${setT}" +"%H:%M" 2> /dev/null)
+	# Store times in database
+	sqlite3 $darkdir/solar.db <<EOF
+	CREATE TABLE IF NOT EXISTS solar (id integer PRIMARY KEY, time VARCHAR(5));
+	INSERT OR IGNORE INTO solar (id, time) VALUES (1, '$riseT24'), (2, '$setT24');
+	UPDATE solar SET time='$riseT24' WHERE id=1;
+	UPDATE solar SET time='$setT24' WHERE id=2;
+EOF
 	# Log
-	echo "$(date +"%d/%m/%y %T")" Darkmode: Solar query saved - Sunrise: "$(<"$darkdir"/riseT)" Sunset: "$(<"$darkdir"/setT)" >> "$darkdir"/darkmode.log
+	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=1;' "")" Sunset: "$(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=2;' "")" >> ~/Library/Logs/io.github.katernet.darkmode.log
 }
 
 # Deploy launch agents
@@ -89,10 +95,10 @@ launch() {
 	shdir="$(cd "$(dirname "$0")" && pwd)" # Get script path
 	mkdir ~/Library/LaunchAgents 2> /dev/null; cd "$_" || return # Create LaunchAgents directory (if required) and cd there
 	# Setup launch agent plists
-	/usr/libexec/PlistBuddy -c "Add :Label string local.$macname.Darkmode.sunrise" "$plistR" 1> /dev/null
-	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/Darkmode.sh" "$plistR"
-	/usr/libexec/PlistBuddy -c "Add :Label string local.$macname.Darkmode.sunset" "$plistS" 1> /dev/null
-	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/Darkmode.sh" "$plistS"
+	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunrise" "$plistR" 1> /dev/null
+	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/darkmode.sh" "$plistR"
+	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunset" "$plistS" 1> /dev/null
+	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/darkmode.sh" "$plistS"
 	# Load launch agents
 	launchctl load "$plistR"
 	launchctl load "$plistS"
@@ -123,31 +129,31 @@ editPlist() {
 # Error logging
 log() {
 	while IFS='' read -r line; do
-		echo "$(date +"%D %T") $line" >> "$darkdir"/darkmode.log
+		echo "$(date +"%D %T") $line" >> ~/Library/Logs/io.github.katernet.darkmode.log
 	done
 }
 
 ## Config ##
 
-# Create Darkmode directory if doesn't exist
+# Error log
+exec 2> >(log)
+
+# Create darkmode directory if doesn't exist
 if [ ! -d "$darkdir" ]; then
 	mkdir $darkdir
 	solar
 fi
-
-# Error log
-exec 2> >(log)
 
 # Deploy launch agents if don't exist
 if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
 	launch
 fi
 
-# Get sunrise and sunset hrs and mins. Remove leading 0s with sed.
-riseH=$(< "$darkdir"/riseT head -c2 | sed 's/^0*//')
-riseM=$(< "$darkdir"/riseT tail -c3 | sed 's/^0*//')
-setH=$(< "$darkdir"/setT head -c2 | sed 's/^0*//')
-setM=$(< "$darkdir"/setT tail -c3 | sed 's/^0*//')
+# Get sunrise and sunset hrs and mins. Strip leading 0 with sed.
+riseH=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=1;' "") | head -c2 | sed 's/^0//')
+riseM=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=1;' "") | tail -c3 | sed 's/^0//')
+setH=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=2;' "") | head -c2 | sed 's/^0//')
+setM=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=2;' "") | tail -c3 | sed 's/^0//')
 
 # Current 24H time hr and min
 timeH=$(date +"%H" | sed 's/^0*//')
