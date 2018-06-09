@@ -8,7 +8,7 @@ Compatible with macOS Mojave Dark Mode.
 
 ### Usage
 ```
-$ ./Darkmode.sh
+$ ./darkmode.sh
 ```
  
 ### Notes
@@ -19,4 +19,6 @@ The script pulls your location from ipinfo.io. If you would not like the script 
 
 If you have a custom Alfred theme, you can change the name of the theme in the darkMode function. Change the second quote in the osascript commands.
 
-The script creates a folder in your Documents folder named 'Darkmode' to store the solar data and a log file. If you want to change the folder location, change the "darkdir" global variable.
+The script creates a folder in your Documents folder named 'darkmode' to store the solar database. If you want to change the folder location, change the "darkdir" global variable.
+
+A log file is stored in ~/Library/Logs which logs solar time changes and script errors. 
