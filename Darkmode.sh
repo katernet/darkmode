@@ -2,10 +2,10 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.3
+## Author: katernet ## Version 1.4
 
 ## Global variables ##
-darkdir=~/Documents/darkmode # darkmode directory
+darkdir=~/Library/Application\ Support/darkmode # darkmode directory
 plistR=~/Library/LaunchAgents/io.github.katernet.darkmode.sunrise.plist # Launch Agent plist locations
 plistS=~/Library/LaunchAgents/io.github.katernet.darkmode.sunset.plist
 
@@ -80,14 +80,14 @@ solar() {
 	riseT24=$(date -jf "%I:%M %p" "${riseT}" +"%H:%M" 2> /dev/null)
 	setT24=$(date -jf "%I:%M %p" "${setT}" +"%H:%M" 2> /dev/null)
 	# Store times in database
-	sqlite3 $darkdir/solar.db <<EOF
-	CREATE TABLE IF NOT EXISTS solar (id integer PRIMARY KEY, time VARCHAR(5));
+	sqlite3 "$darkdir"/solar.db <<EOF
+	CREATE TABLE IF NOT EXISTS solar (id INTEGER PRIMARY KEY, time VARCHAR(5));
 	INSERT OR IGNORE INTO solar (id, time) VALUES (1, '$riseT24'), (2, '$setT24');
 	UPDATE solar SET time='$riseT24' WHERE id=1;
 	UPDATE solar SET time='$setT24' WHERE id=2;
 EOF
 	# Log
-	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=1;' "")" Sunset: "$(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=2;' "")" >> ~/Library/Logs/io.github.katernet.darkmode.log
+	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "")" Sunset: "$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "")" >> ~/Library/Logs/io.github.katernet.darkmode.log
 }
 
 # Deploy launch agents
@@ -140,7 +140,7 @@ exec 2> >(log)
 
 # Create darkmode directory if doesn't exist
 if [ ! -d "$darkdir" ]; then
-	mkdir $darkdir
+	mkdir "$darkdir"
 	solar
 fi
 
@@ -150,10 +150,10 @@ if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
 fi
 
 # Get sunrise and sunset hrs and mins. Strip leading 0 with sed.
-riseH=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=1;' "") | head -c2 | sed 's/^0//')
-riseM=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=1;' "") | tail -c3 | sed 's/^0//')
-setH=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=2;' "") | head -c2 | sed 's/^0//')
-setM=$(echo $(sqlite3 $darkdir/solar.db 'SELECT time FROM solar WHERE id=2;' "") | tail -c3 | sed 's/^0//')
+riseH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | head -c2 | sed 's/^0//')
+riseM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | tail -c3 | sed 's/^0//')
+setH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | head -c2 | sed 's/^0//')
+setM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | tail -c3 | sed 's/^0//')
 
 # Current 24H time hr and min
 timeH=$(date +"%H" | sed 's/^0*//')
