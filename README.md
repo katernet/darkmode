@@ -20,3 +20,5 @@ This script pulls your location from ipinfo.io. If you would not like the script
 If you have a custom Alfred theme, you can change the name of the theme in the darkMode function. Change the second quote in the osascript commands.
 
 A log file is stored in ~/Library/Logs which logs solar time changes and script errors.
+
+To uninstall: $ ./darkmode.sh /u
