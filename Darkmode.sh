@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.4
+## Author: katernet ## Version 1.5
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -126,6 +126,25 @@ editPlist() {
 	esac
 }
 
+# Uninstall
+unstl() {
+	# Unload launch agents
+	launchctl unload "$plistR"
+	launchctl unload "$plistS"
+	# Check if darkmode files exist and move to Trash
+	if [ -d "$darkdir" ]; then
+		mv "$darkdir" ~/.Trash
+	fi
+	if [ -f "$plistR" ] || [ -f "$plistS" ]; then
+		mv "$plistR" ~/.Trash
+		mv "$plistS" ~/.Trash
+	fi
+	if [ -f ~/Library/Logs/io.github.katernet.darkmode.log ]; then
+		mv ~/Library/Logs/io.github.katernet.darkmode.log ~/.Trash
+	fi
+	darkMode off
+}
+
 # Error logging
 log() {
 	while IFS='' read -r line; do
@@ -137,6 +156,21 @@ log() {
 
 # Error log
 exec 2> >(log)
+
+# Uninstall switch
+if [ "$1" == '/u' ]; then # Shell parameter
+	unstl
+	error=$? # Get exit code from unstl()
+	if [ $error -ne 0 ]; then # If exit code not equal to 0
+		echo "Uninstall failed! For manual uninstall steps visit https://github.com/katernet/darkmode/issues/1"
+		read -rp "Open link in your browser? [y/n] " prompt
+		if [[ $prompt =~ [yY](es)* ]]; then
+			open https://github.com/katernet/darkmode/issues/1
+		fi
+		exit $error
+	fi
+	exit 0
+fi
 
 # Create darkmode directory if doesn't exist
 if [ ! -d "$darkdir" ]; then
@@ -156,8 +190,8 @@ setH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | hea
 setM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | tail -c3 | sed 's/^0//')
 
 # Current 24H time hr and min
-timeH=$(date +"%H" | sed 's/^0*//')
-timeM=$(date +"%M" | sed 's/^0*//')
+timeH=$(date +"%H" | sed 's/^0//')
+timeM=$(date +"%M" | sed 's/^0//')
 
 ## Code ##
 
