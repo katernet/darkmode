@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.5
+## Author: katernet ## Version 1.6
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -28,17 +28,19 @@ darkMode() {
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
 				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
 			fi
-			# Get sunset launch agent start interval time
-			plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
-			plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
-			if [ -z "$plistSH" ] && [ -z "$plistSM" ]; then # If plist solar time vars are empty
-				editPlist add "$setH" "$setM" "$plistS" # Run add solar time plist function
-			elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent times and solar times differ
-				editPlist update "$setH" "$setM" "$plistS" # Run update solar time plist function
-			fi
-			# Run solar query on first day of week
-			if [ "$(date +%u)" = 1 ]; then
-				solar
+			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
+				# Get sunset launch agent start interval time
+				plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
+				plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
+				if [ -z "$plistSH" ] && [ -z "$plistSM" ]; then # If plist solar time vars are empty
+					editPlist add "$setH" "$setM" "$plistS" # Run add solar time plist function
+				elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent times and solar times differ
+					editPlist update "$setH" "$setM" "$plistS" # Run update solar time plist function
+				fi
+				# Run solar query on first day of week
+				if [ "$(date +%u)" = 1 ]; then
+					solar
+				fi
 			fi
 			;;
 		on)
@@ -93,12 +95,13 @@ EOF
 # Deploy launch agents
 launch() {
 	shdir="$(cd "$(dirname "$0")" && pwd)" # Get script path
+	cp -p "$shdir"/darkmode.sh "$darkdir"/ # Copy script to darkmode directory
 	mkdir ~/Library/LaunchAgents 2> /dev/null; cd "$_" || return # Create LaunchAgents directory (if required) and cd there
 	# Setup launch agent plists
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunrise" "$plistR" 1> /dev/null
-	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/darkmode.sh" "$plistR"
+	/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunset" "$plistS" 1> /dev/null
-	/usr/libexec/PlistBuddy -c "Add :Program string ${shdir}/darkmode.sh" "$plistS"
+	/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
 	# Load launch agents
 	launchctl load "$plistR"
 	launchctl load "$plistS"
