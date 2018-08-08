@@ -11,7 +11,7 @@ $ ./darkmode.sh
  
 ### Notes
 
-Compatible with macOS Mojave beta Dark Mode dev beta 5/public beta 4 and above.
+Compatible with macOS Mojave beta Dark Mode in dev beta 5/public beta 4 and above - Press OK to the security dialog to allow control to System Events (and Alfred if installed) when first running the script and at the next solar time.
 
 This script pulls your location from ipinfo.io. If you would not like the script to gather your location, hard code your location in the solar function in variables 'loc' (city) and 'nat' (nation) e.g. loc=seattle nat=usa
 
