@@ -4,6 +4,12 @@ Set macOS dark mode and Alfred dark theme at sunset.
 
 This shell script pulls sunrise and sunset data from the Yahoo weather API and automates the setting up of two user launch agents for sunrise and sunset, which then take over running the script thereafter. If your mac was asleep/off during the solar times, launchd will run the script when you're next logged in!
 
+##### High Sierra and below
+![HighSierra](resources/highsierra.gif "High Sierra dark menu bar and dock")
+
+##### Mojave
+![Mojave](resources/Mojave.gif "Mojave Dark Mode")
+
 ### Usage
 ```
 $ ./darkmode.sh
