@@ -8,7 +8,7 @@ This shell script pulls sunrise and sunset data from the Yahoo weather API and a
 ![HighSierra](resources/highsierra.gif "High Sierra dark menu bar and dock")
 
 ##### Mojave
-![Mojave](resources/Mojave.gif "Mojave Dark Mode")
+![Mojave](resources/mojave.gif "Mojave Dark Mode")
 
 ### Usage
 ```
