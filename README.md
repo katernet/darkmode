@@ -11,7 +11,7 @@ $ ./darkmode.sh
  
 ### Notes
 
-Compatible with macOS Mojave beta Dark Mode. For Mojave dev beta 3/public beta 2 and above see [this issue](https://github.com/katernet/darkmode/issues/3#issuecomment-403424219).
+Compatible with macOS Mojave beta Dark Mode dev beta 5/public beta 4 and above.
 
 This script pulls your location from ipinfo.io. If you would not like the script to gather your location, hard code your location in the solar function in variables 'loc' (city) and 'nat' (nation) e.g. loc=seattle nat=usa
 
