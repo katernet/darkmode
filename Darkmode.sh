@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.6
+## Author: katernet ## Version 1.7
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
