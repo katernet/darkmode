@@ -100,8 +100,10 @@ launch() {
 	# Setup launch agent plists
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunrise" "$plistR" 1> /dev/null
 	/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
+	/usr/libexec/PlistBuddy -c "Add :RunAtLoad bool true" "$plistR"
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunset" "$plistS" 1> /dev/null
 	/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
+	/usr/libexec/PlistBuddy -c "Add :RunAtLoad bool true" "$plistS"
 	# Load launch agents
 	launchctl load "$plistR"
 	launchctl load "$plistS"
