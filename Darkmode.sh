@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.7
+## Author: katernet ## Version 1.7.1
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -29,6 +29,10 @@ darkMode() {
 				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
 			fi
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
+				# Run solar query on first day of week
+				if [ "$(date +%u)" = 1 ]; then
+					solar
+				fi
 				# Get sunset launch agent start interval time
 				plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
 				plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
@@ -36,10 +40,6 @@ darkMode() {
 					editPlist add "$setH" "$setM" "$plistS" # Run add solar time plist function
 				elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent times and solar times differ
 					editPlist update "$setH" "$setM" "$plistS" # Run update solar time plist function
-				fi
-				# Run solar query on first day of week
-				if [ "$(date +%u)" = 1 ]; then
-					solar
 				fi
 			fi
 			;;
@@ -112,19 +112,21 @@ launch() {
 editPlist() {
 	case $1 in
 		add)
+			# Unload launch agent
+			launchctl unload "$4"
 			# Add solar times to launch agent plist
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Hour integer $2" "$4"
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Minute integer $3" "$4"
-			# Reload launch agent
-			launchctl unload "$4"
+			# Load launch agent
 			launchctl load "$4"
 			;;
 		update)
+			# Unload launch agent
+			launchctl unload "$4"
 			# Update launch agent plist solar times
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Hour $2" "$4"
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Minute $3" "$4"
-			# Reload launch agent
-			launchctl unload "$4"
+			# Load launch agent
 			launchctl load "$4"
 			;;
 	esac
