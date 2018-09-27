@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.7.1
+## Author: katernet ## Version 1.7.2
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -71,6 +71,17 @@ darkMode() {
 
 # Solar query
 solar() {
+	# Check for connection to Yahoo API
+	time=$(date +%s)
+	while true && [ $(( $(date +%s) - 20)) -lt $time ]; do # Sccessful connection or 20s timeout
+		if curl -s query.yahooapis.com; then
+			break
+		else # Timeout
+			sleep 20
+			echo "Connection timeout. Exiting."
+			exit 1
+		fi
+	done 
 	# Set location
 	# Get city and nation from http://ipinfo.io
 	loc=$(curl -s ipinfo.io/geo | awk -F: '{print $2}' | awk 'FNR ==3 {print}' | sed 's/[", ]//g')
