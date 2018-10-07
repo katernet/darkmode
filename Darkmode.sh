@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.8
+## Author: katernet ## Version 1.8.1
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -135,7 +135,13 @@ unstl() {
 	launchctl unload "$plistS"
 	# Check if darkmode files exist and move to Trash
 	if [ -d "$darkdir" ]; then
-		mv "$darkdir" ~/.Trash
+		if [ -d ~/.Trash/darkmode ]; then
+			mv "$darkdir" "$(dirname "$darkdir")"/darkmode"$(date +%H%M%S)"
+			darkdird=$(echo "$(dirname "$darkdir")"/darkmode*)
+			mv "$darkdird" ~/.Trash
+		else
+			mv "$darkdir" ~/.Trash
+		fi
 	fi
 	if [ -f "$plistR" ] || [ -f "$plistS" ]; then
 		mv "$plistR" ~/.Trash
