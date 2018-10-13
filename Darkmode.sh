@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 ## macOS Dark Mode at sunset
-## Solar times pulled from Yahoo Weather API
-## Author: katernet ## Version 1.8
+## Solar times pulled from Night Shift
+## Author: katernet ## Version 1.9b3
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -29,8 +29,8 @@ darkMode() {
 				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
 			fi
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
-				# Run solar query on first day of week
-				if [ "$(date +%u)" = 1 ]; then
+				# Run solar query on first day of week and if no static time arguments provided
+				if [ "$(date +%u)" = 1 ] && [ $# -eq 1 ]; then
 					solar
 				fi
 				# Get sunset launch agent start interval time
@@ -39,7 +39,12 @@ darkMode() {
 				if [ -z "$plistSH" ] && [ -z "$plistSM" ]; then # If plist solar time vars are empty
 					editPlist add "$setH" "$setM" "$plistS" # Run add solar time plist function
 				elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent times and solar times differ
-					editPlist update "$setH" "$setM" "$plistS" # Run update solar time plist function
+					# Run update solar time plist
+					if [ $# -eq 3 ]; then
+						editPlist update "$setH" "$setM" "$plistS" "$2" "$3"
+					else
+						editPlist update "$setH" "$setM" "$plistS"
+					fi
 				fi
 			fi
 			;;
@@ -63,7 +68,11 @@ darkMode() {
 			if [ -z "$plistRH" ] && [ -z "$plistRM" ]; then
 				editPlist add "$riseH" "$riseM" "$plistR"
 			elif [[ "$plistRH" -ne "$riseH" ]] || [[ "$plistRM" -ne "$riseM" ]]; then
-				editPlist update "$riseH" "$riseM" "$plistR"
+				if [ $# -eq 3 ]; then
+					editPlist update "$riseH" "$riseM" "$plistR" "$2" "$3"
+				else
+					editPlist update "$riseH" "$riseM" "$plistR"
+				fi
 			fi
 			;;
 	esac
@@ -88,6 +97,26 @@ EOF
 	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "")" Sunset: "$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "")" >> ~/Library/Logs/io.github.katernet.darkmode.log
 }
 
+# Get time
+getTime() {
+	if [ $# -eq 2 ]; then # If static time arguments provided
+		# Get static time hr and min. Strip leading 0 with sed.
+		riseH=$(echo "$1" | head -c2 | sed 's/^0//')
+		riseM=$(echo "$1" | tail -c3 | sed 's/^0//')
+		setH=$(echo "$2" | head -c2 | sed 's/^0//')
+		setM=$(echo "$2" | tail -c3 | sed 's/^0//')
+	else 
+		# Get sunrise and sunset hrs and mins from database.
+		riseH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | head -c2 | sed 's/^0//')
+		riseM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | tail -c3 | sed 's/^0//')
+		setH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | head -c2 | sed 's/^0//')
+		setM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | tail -c3 | sed 's/^0//')
+	fi
+	# Get current 24H time hr and min
+	timeH=$(date +"%H" | sed 's/^0//')
+	timeM=$(date +"%M" | sed 's/^0//')
+}
+
 # Deploy launch agents
 launch() {
 	shdir="$(cd "$(dirname "$0")" && pwd)" # Get script path
@@ -95,10 +124,22 @@ launch() {
 	mkdir ~/Library/LaunchAgents 2> /dev/null; cd "$_" || return # Create LaunchAgents directory (if required) and cd there
 	# Setup launch agent plists
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunrise" "$plistR" 1> /dev/null
-	/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
 	/usr/libexec/PlistBuddy -c "Add :RunAtLoad bool true" "$plistR"
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunset" "$plistS" 1> /dev/null
-	/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
+	if [ $# -eq 0 ]; then # No arguments provided - solar
+		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
+		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
+	fi
+	if [ $# -eq 2 ]; then # If static time arguments provided
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments array" "$plistR"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:0 string ${darkdir}/darkmode.sh" "$plistR"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:1 string $1" "$plistR"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:2 string $2" "$plistR"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments array" "$plistS"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:0 string ${darkdir}/darkmode.sh" "$plistS"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:1 string $1" "$plistS"
+		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:2 string $2" "$plistS"
+	fi
 	# Load launch agents
 	launchctl load "$plistR"
 	launchctl load "$plistS"
@@ -122,6 +163,10 @@ editPlist() {
 			# Update launch agent plist solar times
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Hour $2" "$4"
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Minute $3" "$4"
+			if [ $# -eq 6 ]; then
+				/usr/libexec/PlistBuddy -c "Set :ProgramArguments:1 $5" "$4"
+				/usr/libexec/PlistBuddy -c "Set :ProgramArguments:2 $6" "$4"
+			fi
 			# Load launch agent
 			launchctl load "$4"
 			;;
@@ -135,7 +180,13 @@ unstl() {
 	launchctl unload "$plistS"
 	# Check if darkmode files exist and move to Trash
 	if [ -d "$darkdir" ]; then
-		mv "$darkdir" ~/.Trash
+		if [ -d ~/.Trash/darkmode ]; then
+			mv "$darkdir" "$(dirname "$darkdir")"/darkmode"$(date +%H%M%S)"
+			darkdird=$(echo "$(dirname "$darkdir")"/darkmode*)
+			mv "$darkdird" ~/.Trash
+		else
+			mv "$darkdir" ~/.Trash
+		fi
 	fi
 	if [ -f "$plistR" ] || [ -f "$plistS" ]; then
 		mv "$plistR" ~/.Trash
@@ -145,6 +196,7 @@ unstl() {
 		mv ~/Library/Logs/io.github.katernet.darkmode.log ~/.Trash
 	fi
 	darkMode off
+	echo Uninstall successful.
 }
 
 # Error logging
@@ -174,26 +226,31 @@ if [ "$1" == '/u' ]; then # Shell parameter
 	exit 0
 fi
 
-# Create darkmode directory if doesn't exist
-if [ ! -d "$darkdir" ]; then
-	mkdir "$darkdir"
-	solar
+# Static time arguments
+if [ $# -gt 0 ]; then # If arguments provided
+	# Check arguments provided are in 24H format
+	if [ $# -eq 2 ] && (( $1 >= 0 && $1 <= 2400 )) && (( $2 >= 0 && $2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
+		getTime "$1" "$2"
+		mkdir -p "$darkdir"
+		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then # If launch agents don't exist
+			launch "$1" "$2"
+		fi
+	else
+		echo Error: Invalid arguments. Usage: ./darkmode.sh HHMM HHMM
+		echo Exiting
+		exit 1
+	fi
+# No arguments - Solar
+else
+	if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
+		mkdir "$darkdir" 
+		solar
+		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
+			launch
+		fi
+	fi
+	getTime
 fi
-
-# Deploy launch agents if don't exist
-if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
-	launch
-fi
-
-# Get sunrise and sunset hrs and mins. Strip leading 0 with sed.
-riseH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | head -c2 | sed 's/^0//')
-riseM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | tail -c3 | sed 's/^0//')
-setH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | head -c2 | sed 's/^0//')
-setM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "" | tail -c3 | sed 's/^0//')
-
-# Current 24H time hr and min
-timeH=$(date +"%H" | sed 's/^0//')
-timeM=$(date +"%M" | sed 's/^0//')
 
 ## Code ##
 
@@ -201,18 +258,38 @@ timeM=$(date +"%M" | sed 's/^0//')
 if [[ "$timeH" -ge "$riseH" && "$timeH" -lt "$setH" ]]; then
 	# Sunrise
 	if [[ "$timeH" -ge $((riseH+1)) || "$timeM" -ge "$riseM" ]]; then
-		darkMode off
+		if [ $# -eq 0 ]; then # If no arguments provided
+			darkMode off
+		else 
+			darkMode off "$1" "$2"
+		fi
 	# Sunset	
 	elif [[ "$timeH" -ge "$setH" && "$timeM" -ge "$setM" ]] || [[ "$timeH" -le "$riseH" && "$timeM" -lt "$riseM" ]]; then 
-		darkMode on
+		if [ $# -eq 0 ]; then
+			darkMode on
+		else 
+			darkMode on "$1" "$2"
+		fi
 	fi
 # Sunset		
 elif [[ "$timeH" -ge 0 && "$timeH" -lt "$riseH" ]]; then
-	darkMode on
+	if [ $# -eq 0 ]; then
+		darkMode on
+	else 
+		darkMode on "$1" "$2"
+	fi
 # Sunrise	
 elif [[ "$timeH" -eq "$setH" && "$timeM" -lt "$setM" ]]; then
-	darkMode off
+	if [ $# -eq 0 ]; then
+		darkMode off
+	else 
+		darkMode off "$1" "$2"
+	fi
 # Sunset	
 else
-	darkMode on
+	if [ $# -eq 0 ]; then
+		darkMode on
+	else 
+		darkMode on "$1" "$2"
+	fi
 fi
