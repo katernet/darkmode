@@ -1,8 +1,10 @@
-# darkmode
+# darkmode beta
 
 Set macOS dark mode and Alfred dark theme at sunset.
 
 This shell script gets the sunrise and sunset times from Night Shift and automates the setting up of two user launch agents for sunrise and sunset, which then take over running the script thereafter. If your mac was asleep/off during the solar times, launchd will run the script when you're next logged in!
+
+Or you can supply your own sunrise and sunset 24H times by passing arguments. Example: 0600 1800
 
 ##### High Sierra and below
 ![HighSierra](resources/highsierra.gif "High Sierra dark menu bar and dock")
@@ -13,6 +15,12 @@ This shell script gets the sunrise and sunset times from Night Shift and automat
 ### Usage
 ```
 $ ./darkmode.sh
+```
+
+OR
+
+```
+$ ./darkmode.sh HHMM HHMM
 ```
  
 ### Notes
