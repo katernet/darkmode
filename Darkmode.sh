@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 ## macOS Dark Mode at sunset
-## Solar times pulled from Yahoo Weather API
+## Solar times pulled from Night Shift
 ## Author: katernet ## Version 1.8.1
 
 ## Global variables ##
