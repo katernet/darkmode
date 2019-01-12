@@ -74,9 +74,20 @@ solar() {
 	# Get Night Shift solar times (UTC)
 	riseT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
 	setT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
+
+   	 # test 12 or 24 hour format
+   	 strig="M"
+   	 if [[ $riseT == *${strig}* ]];
+   	 then
+     	   formatT="%Y-%m-%d %H:%M:%S %p %z"
+   	 else
+      	  formatT="%Y-%m-%d %H:%M:%S %z"
+   	 fi
+    
 	# Convert to local time
-	riseTL=$(date -jf "%Y-%m-%d %H:%M:%S %z" "$riseT" +"%H:%M")
-	setTL=$(date -jf "%Y-%m-%d %H:%M:%S %z" "$setT" +"%H:%M")
+	riseTL=$(date -jf "$formatT" "$riseT" +"%H:%M")
+	setTL=$(date -jf "$formatT" "$setT" +"%H:%M")
+
 	# Store times in database
 	sqlite3 "$darkdir"/solar.db <<EOF
 	CREATE TABLE IF NOT EXISTS solar (id INTEGER PRIMARY KEY, time VARCHAR(5));
