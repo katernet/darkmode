@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.8.1
+## Author: katernet ## Version 1.8.2
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -75,14 +75,12 @@ solar() {
 	riseT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
 	setT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
 
-   	 # test 12 or 24 hour format
-   	 strig="M"
-   	 if [[ $riseT == *${strig}* ]];
-   	 then
-     	   formatT="%Y-%m-%d %H:%M:%S %p %z"
-   	 else
-      	  formatT="%Y-%m-%d %H:%M:%S %z"
-   	 fi
+	# Test for 12 or 24 hour format
+	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
+		formatT="%Y-%m-%d %H:%M:%S %p %z"
+	else
+		formatT="%Y-%m-%d %H:%M:%S %z"
+	fi
     
 	# Convert to local time
 	riseTL=$(date -jf "$formatT" "$riseT" +"%H:%M")
