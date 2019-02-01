@@ -19,7 +19,7 @@ $ ./darkmode.sh
 
 Compatible with macOS Mojave Dark Mode. Press OK to the security dialogs to allow control to System Events that appear when first running the script.
 
-Night Shift requires "Setting Timezone" enabled in System Preferences > Security & Privacy > Location Services > System Services > Details.
+Night Shift requires Wifi and "Setting Timezone" enabled in System Preferences > Security & Privacy > Location Services > System Services > Details.
 
 If your Mac does not support Night Shift, please use the previous version [1.7.2](https://github.com/katernet/darkmode/releases/tag/1.7.2) which uses the Yahoo Weather API.
 
