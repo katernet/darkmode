@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.9b3
+## Author: katernet ## Version 1.9b4
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -33,6 +33,14 @@ darkMode() {
 				if [ "$(date +%u)" = 1 ] && [ $# -eq 1 ]; then
 					solar
 				fi
+				
+				# Run solar query if daylight saving status differs from database
+				dst=$(perl -e 'print ((localtime)[8])')
+				dstX=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=3;' "")
+				if (( dst != dstX )) ; then
+					solar
+				fi
+				
 				# Get sunset launch agent start interval time
 				plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
 				plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
@@ -80,21 +88,46 @@ darkMode() {
 
 # Solar query
 solar() {
+	# Check for Wifi connectivity - timemout 30s
+	t=0
+	while [[ "$wStatus" != "running" ]]; do
+		t=$((t+1))
+		wStatus=$(/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | sed -n 5p | awk '{print $2}')
+		sleep 1
+		if [ $t -eq 30 ]; then
+			echo "darkmode: Wifi connection timeout." >&2
+			exit 1
+		fi
+	done
+	
 	# Get Night Shift solar times (UTC)
 	riseT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
 	setT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
+
+	# Test for 12 or 24 hour format
+	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
+		formatT="%Y-%m-%d %H:%M:%S %p %z"
+	else
+		formatT="%Y-%m-%d %H:%M:%S %z"
+	fi
+    
 	# Convert to local time
-	riseTL=$(date -jf "%Y-%m-%d %H:%M:%S %z" "$riseT" +"%H:%M")
-	setTL=$(date -jf "%Y-%m-%d %H:%M:%S %z" "$setT" +"%H:%M")
-	# Store times in database
-	sqlite3 "$darkdir"/solar.db <<EOF
+	riseTL=$(date -jf "$formatT" "$riseT" +"%H:%M")
+	setTL=$(date -jf "$formatT" "$setT" +"%H:%M")
+	
+	# Get daylight saving status (0/1)
+	dst=$(perl -e 'print ((localtime)[8])')
+
+	# Store values in database
+	sqlite3 /users/rich/desktop/test.db <<EOF
 	CREATE TABLE IF NOT EXISTS solar (id INTEGER PRIMARY KEY, time VARCHAR(5));
-	INSERT OR IGNORE INTO solar (id, time) VALUES (1, '$riseTL'), (2, '$setTL');
+	INSERT OR IGNORE INTO solar (id, time) VALUES (1, '$riseTL'), (2, '$setTL'), (3, '$dst');
 	UPDATE solar SET time='$riseTL' WHERE id=1;
 	UPDATE solar SET time='$setTL' WHERE id=2;
+	UPDATE solar SET time='$dst' WHERE id=3;
 EOF
 	# Log
-	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "")" Sunset: "$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=2;' "")" >> ~/Library/Logs/io.github.katernet.darkmode.log
+	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$riseTL" Sunset: "$setTL" >> ~/Library/Logs/io.github.katernet.darkmode.log
 }
 
 # Get time
