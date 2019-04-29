@@ -1,20 +1,27 @@
 # darkmode
 
+<p align="center">
+<a href="https://github.com/katernet/darkmode/releases/latest"><img src="https://img.shields.io/badge/download-latest-brightgreen.svg" alt="download"></a>
+<img src="https://img.shields.io/badge/platform-macOS-lightgrey.svg" alt="platform">
+<img src="https://img.shields.io/badge/requires-macOS Mojave/Yosemite+-ab69b1.svg" alt="systemrequirements">
+<img src="https://img.shields.io/github/downloads/katernet/darkmode/total.svg">
+</p>
+
 Set macOS dark mode and Alfred dark theme at sunset.
 
 This shell script gets the sunrise and sunset times from Night Shift and automates the setting up of two user launch agents for sunrise and sunset, which then take over running the script thereafter. If your mac was asleep/off during the solar times, launchd will run the script when you're next logged in!
 
-##### High Sierra and below
-![HighSierra](resources/highsierra.gif "High Sierra dark menu bar and dock")
-
 ##### Mojave
 ![Mojave](resources/mojave.gif "Mojave Dark Mode")
+
+##### High Sierra and below
+![HighSierra](resources/highsierra.gif "High Sierra dark menu bar and dock")
 
 ### Usage
 ```
 $ ./darkmode.sh
 ```
- 
+
 ### Notes
 
 Compatible with macOS Mojave Dark Mode. Press OK to the security dialogs to allow control to System Events that appear when first running the script.
