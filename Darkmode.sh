@@ -119,7 +119,7 @@ solar() {
 	dst=$(perl -e 'print ((localtime)[8])')
 
 	# Store values in database
-	sqlite3 /users/rich/desktop/test.db <<EOF
+	sqlite3 "$darkdir"/solar.db <<EOF
 	CREATE TABLE IF NOT EXISTS solar (id INTEGER PRIMARY KEY, time VARCHAR(5));
 	INSERT OR IGNORE INTO solar (id, time) VALUES (1, '$riseTL'), (2, '$setTL'), (3, '$dst');
 	UPDATE solar SET time='$riseTL' WHERE id=1;
