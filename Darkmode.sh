@@ -26,7 +26,7 @@ darkMode() {
 			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
+				osascript -e 'tell application "Alfred 4" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
 			fi
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
 				# Run solar query on first day of week
@@ -55,7 +55,7 @@ darkMode() {
 			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred dark theme
+				osascript -e 'tell application "Alfred 4" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred dark theme
 			fi
 			# Get sunrise launch agent start interval
 			plistRH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistR" 2> /dev/null)
