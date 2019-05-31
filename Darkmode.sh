@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.8.2
+## Author: katernet ## Version 1.8.3
 
 ## Global variables ##
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
@@ -26,7 +26,8 @@ darkMode() {
 			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
+				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
+				osascript -e 'tell application "Alfred '$v'" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
 			fi
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
 				# Run solar query on first day of week
@@ -54,8 +55,9 @@ darkMode() {
 				end tell
 			end tell
 			'
-			if ls /Applications/Alfred*.app >/dev/null 2>&1; then
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred dark theme
+			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
+				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
+				osascript -e 'tell application "Alfred '$v'" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred dark theme
 			fi
 			# Get sunrise launch agent start interval
 			plistRH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistR" 2> /dev/null)
