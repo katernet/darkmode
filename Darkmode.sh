@@ -2,9 +2,11 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.9b4
+## Author: katernet ## Version 1.9b5
 
 ## Global variables ##
+alfredTheme='Alfred' # Set Alfred themes
+alfredDarkTheme='Alfred Dark'
 darkdir=~/Library/Application\ Support/darkmode # darkmode directory
 plistR=~/Library/LaunchAgents/io.github.katernet.darkmode.sunrise.plist # Launch Agent plist locations
 plistS=~/Library/LaunchAgents/io.github.katernet.darkmode.sunset.plist
@@ -26,21 +28,25 @@ darkMode() {
 			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred"' 2> /dev/null # Set Alfred default theme
+				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
+				osascript -e 'tell application "Alfred '"$v"'" to set theme "'"$alfredTheme"'"' 2> /dev/null # Set Alfred default theme
 			fi
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
-				# Run solar query on first day of week and if no static time arguments provided
-				if [ "$(date +%u)" = 1 ] && [ $# -eq 1 ]; then
-					solar
+				if [ $# -eq 1 ] ; then	# If no static time arguments
+					if [ -z "$firstRun" ]; then # If not first run of script
+						# Run solar query on first day of week
+						if [ "$(date +%u)" = 1 ]; then
+							solar
+						else
+							dstN=$(perl -e 'print ((localtime)[8])') # Get daylight saving status
+							dstD=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=3;' ".exit") # Query database for daylight saving status
+							# Run solar quert if daylight saving status differs from database
+							if (( dstN != dstD )); then
+								solar
+							fi
+						fi
+					fi
 				fi
-				
-				# Run solar query if daylight saving status differs from database
-				dst=$(perl -e 'print ((localtime)[8])')
-				dstX=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=3;' "")
-				if (( dst != dstX )) ; then
-					solar
-				fi
-				
 				# Get sunset launch agent start interval time
 				plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
 				plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
@@ -68,7 +74,8 @@ darkMode() {
 			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then
-				osascript -e 'tell application "Alfred 3" to set theme "Alfred Dark"' 2> /dev/null # Set Alfred dark theme
+				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
+				osascript -e 'tell application "Alfred '"$v"'" to set theme "'"$alfredDarkTheme"'"' 2> /dev/null # Set Alfred dark theme
 			fi
 			# Get sunrise launch agent start interval
 			plistRH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistR" 2> /dev/null)
@@ -88,21 +95,14 @@ darkMode() {
 
 # Solar query
 solar() {
-	# Check for Wifi connectivity - timemout 30s
-	t=0
-	while [[ "$wStatus" != "running" ]]; do
-		t=$((t+1))
-		wStatus=$(/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | sed -n 5p | awk '{print $2}')
-		sleep 1
-		if [ $t -eq 30 ]; then
-			echo "darkmode: Wifi connection timeout." >&2
-			exit 1
-		fi
-	done
-	
 	# Get Night Shift solar times (UTC)
-	riseT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
-	setT=$(/usr/bin/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
+	if [ "$(sw_vers -productVersion | cut -d. -f-2)" = 10.15 ]; then # If running macOS Catalina
+		brightbin=/usr/libexec/corebrightnessdiag
+	else
+		brightbin=/usr/bin/corebrightnessdiag
+	fi
+	riseT=$("$brightbin" nightshift-internal | grep nextSunrise | cut -d \" -f2)
+	setT=$("$brightbin" nightshift-internal | grep nextSunset | cut -d \" -f2)
 
 	# Test for 12 or 24 hour format
 	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
@@ -127,7 +127,7 @@ solar() {
 	UPDATE solar SET time='$dst' WHERE id=3;
 EOF
 	# Log
-	echo "$(date +"%d/%m/%y %T")" darkmode: Solar query stored - Sunrise: "$riseTL" Sunset: "$setTL" >> ~/Library/Logs/io.github.katernet.darkmode.log
+	echo "Solar query stored - Sunrise: ""$riseTL"" Sunset: ""$setTL""" | tee -a ~/Library/Logs/io.github.katernet.darkmode.log 1> /dev/null
 }
 
 # Get time
@@ -162,8 +162,7 @@ launch() {
 	if [ $# -eq 0 ]; then # No arguments provided - solar
 		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
 		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
-	fi
-	if [ $# -eq 2 ]; then # If static time arguments provided
+	elif [ $# -eq 2 ]; then # If static time arguments provided
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments array" "$plistR"
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:0 string ${darkdir}/darkmode.sh" "$plistR"
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:1 string $1" "$plistR"
@@ -183,7 +182,7 @@ editPlist() {
 	case $1 in
 		add)
 			# Unload launch agent
-			launchctl unload "$4"
+			launchctl unload "$4" 2> /dev/null
 			# Add solar times to launch agent plist
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Hour integer $2" "$4"
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Minute integer $3" "$4"
@@ -193,6 +192,7 @@ editPlist() {
 		update)
 			# Unload launch agent
 			launchctl unload "$4"
+			sleep 5 # Delay to allow time for unload
 			# Update launch agent plist solar times
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Hour $2" "$4"
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Minute $3" "$4"
@@ -204,6 +204,22 @@ editPlist() {
 			launchctl load "$4"
 			;;
 	esac
+}
+
+# Wifi checker
+wifi() {
+	# Check for Wifi connectivity - timemout 30s
+	t=0
+	while [[ "$wStatus" != "running" ]]; do
+		t=$((t+1))
+		wStatus=$(/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | sed -n 5p | awk '{print $2}')
+		sleep 1
+		if [ $t -eq 30 ]; then
+			echo "Wifi connection timeout." | tee >(log)
+			echo "Night Shift requires Wifi. Visit http://katernet.github.io/darkmode for details."
+			exit 1
+		fi
+	done
 }
 
 # Uninstall
@@ -229,13 +245,13 @@ unstl() {
 		mv ~/Library/Logs/io.github.katernet.darkmode.log ~/.Trash
 	fi
 	darkMode off
-	echo Uninstall successful.
+	echo "Uninstall successful."
 }
 
 # Error logging
 log() {
 	while IFS='' read -r line; do
-		echo "$(date +"%D %T") $line" >> ~/Library/Logs/io.github.katernet.darkmode.log
+		echo "$(date +"%D %T") darkmode: $line" >> ~/Library/Logs/io.github.katernet.darkmode.log
 	done
 }
 
@@ -263,24 +279,27 @@ fi
 if [ $# -gt 0 ]; then # If arguments provided
 	# Check arguments provided are in 24H format
 	if [ $# -eq 2 ] && (( $1 >= 0 && $1 <= 2400 )) && (( $2 >= 0 && $2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
+		wifi # Wifi checker
+		if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
+			mkdir "$darkdir"
+		fi
 		getTime "$1" "$2"
-		mkdir -p "$darkdir"
 		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then # If launch agents don't exist
 			launch "$1" "$2"
 		fi
 	else
-		echo Error: Invalid arguments. Usage: ./darkmode.sh HHMM HHMM
-		echo Exiting
+		echo "Error: Invalid arguments. Usage: ./darkmode.sh HHMM HHMM"
+		echo "Exiting."
 		exit 1
 	fi
 # No arguments - Solar
 else
-	if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
+	wifi
+	if [ ! -d "$darkdir" ]; then
+		firstRun=1
 		mkdir "$darkdir" 
 		solar
-		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
-			launch
-		fi
+		launch
 	fi
 	getTime
 fi
@@ -324,5 +343,14 @@ else
 		darkMode on
 	else 
 		darkMode on "$1" "$2"
+	fi
+fi
+
+# Console installation output
+if [ "$firstRun" = 1 ]; then
+	if [ $# -eq 0 ]; then
+		echo "Installation successful. Dark mode will enable at sunset."
+	else
+		echo "Installation successful. Dark mode will enable at ""$2"" hrs."
 	fi
 fi
