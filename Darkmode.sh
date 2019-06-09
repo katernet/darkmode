@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.9b5
+## Author: katernet ## Version 1.9b6
 
 ## Global variables ##
 alfredTheme='Alfred' # Set Alfred themes
@@ -32,16 +32,14 @@ darkMode() {
 				osascript -e 'tell application "Alfred '"$v"'" to set theme "'"$alfredTheme"'"' 2> /dev/null # Set Alfred default theme
 			fi
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
-				if [ $# -eq 1 ] ; then	# If no static time arguments
-					if [ -z "$firstRun" ]; then # If not first run of script
-						# Run solar query on first day of week
-						if [ "$(date +%u)" = 1 ]; then
+				# Run solar query
+				if [ $# -eq 1 ] || [ -z "$firstRun" ]; then	# If no static time arguments or not first run of script
+						if [ "$(date +%u)" = 1 ]; then # Run solar query on first day of week
 							solar
 						else
 							dstN=$(perl -e 'print ((localtime)[8])') # Get daylight saving status
 							dstD=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=3;' ".exit") # Query database for daylight saving status
-							# Run solar quert if daylight saving status differs from database
-							if (( dstN != dstD )); then
+							if (( dstN != dstD )); then # Run solar query if daylight saving status differs from database
 								solar
 							fi
 						fi
@@ -96,13 +94,17 @@ darkMode() {
 # Solar query
 solar() {
 	# Get Night Shift solar times (UTC)
-	if [ "$(sw_vers -productVersion | cut -d. -f-2)" = 10.15 ]; then # If running macOS Catalina
-		brightbin=/usr/libexec/corebrightnessdiag
-	else
-		brightbin=/usr/bin/corebrightnessdiag
+	OSv=$(sw_vers -productVersion) # Get macOS version
+	if (( $(bc <<< "$(echo $OSv | cut -d '.' -f2) >= 15") == 1 )); then # macOS Catalina or higher
+		parentFolder=libexec
+	elif (( $(bc <<< "$(echo $OSv | cut -d '.' -f2-) >= 12.4") == 1 )); then # Between macOS Sierra 10.12.4 and Catalina
+		parentFolder=bin
+	else # Below Sierra 10.12.4 (no Night Shift support)
+		echo "Your macOS version does not support Night Shift. Visit http://katernet.github.io/darkmode for details."
+		exit 1
 	fi
-	riseT=$("$brightbin" nightshift-internal | grep nextSunrise | cut -d \" -f2)
-	setT=$("$brightbin" nightshift-internal | grep nextSunset | cut -d \" -f2)
+	riseT=$(/usr/$parentFolder/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
+	setT=$(/usr/$parentFolder/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
 
 	# Test for 12 or 24 hour format
 	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
@@ -347,7 +349,7 @@ else
 fi
 
 # Console installation output
-if [ "$firstRun" = 1 ]; then
+if [ "$firstRun" = 1 ]; then # If first run of script
 	if [ $# -eq 0 ]; then
 		echo "Installation successful. Dark mode will enable at sunset."
 	else
