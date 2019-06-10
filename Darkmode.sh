@@ -34,14 +34,13 @@ darkMode() {
 			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
 				# Run solar query
 				if [ $# -eq 1 ] || [ -z "$firstRun" ]; then	# If no static time arguments or not first run of script
-						if [ "$(date +%u)" = 1 ]; then # Run solar query on first day of week
+					if [ "$(date +%u)" = 1 ]; then # Run solar query on first day of week
+						solar
+					else
+						dstN=$(perl -e 'print ((localtime)[8])') # Get daylight saving status
+						dstD=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=3;' ".exit") # Query database for daylight saving status
+						if (( dstN != dstD )); then # Run solar query if daylight saving status differs from database
 							solar
-						else
-							dstN=$(perl -e 'print ((localtime)[8])') # Get daylight saving status
-							dstD=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=3;' ".exit") # Query database for daylight saving status
-							if (( dstN != dstD )); then # Run solar query if daylight saving status differs from database
-								solar
-							fi
 						fi
 					fi
 				fi
