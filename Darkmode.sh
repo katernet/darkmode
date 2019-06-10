@@ -324,11 +324,9 @@ else
 	fi
 fi
 
-# Console installation output
-if [ "$firstRun" = 1 ]; then # If first run of script
-	if [ $# -eq 0 ]; then
+# Console installation message
+if [ $# -eq 0 ]; then
+	echo "Installation successful. Dark mode will enable at ""$2"" hrs."
+elif [ "$firstRun" = 1 ]; then # If first run of script
 		echo "Installation successful. Dark mode will enable at sunset."
-	else
-		echo "Installation successful. Dark mode will enable at ""$2"" hrs."
-	fi
 fi
