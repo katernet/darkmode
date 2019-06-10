@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.9b6
+## Author: katernet ## Version 1.9b7
 
 ## Global variables ##
 alfredTheme='Alfred' # Set Alfred themes
@@ -146,6 +146,10 @@ getTime() {
 	# Get current 24H time hr and min
 	timeH=$(date +"%H" | sed 's/^0//')
 	timeM=$(date +"%M" | sed 's/^0//')
+	# Convert times to total min
+	riseMin=$((riseH * 60 + riseM))
+	setMin=$((setH * 60 + setM))
+	nowMin=$((timeH * 60 + timeM))
 }
 
 # Deploy launch agents
@@ -305,42 +309,19 @@ fi
 ## Code ##
 
 # Solar conditions
-if [[ "$timeH" -ge "$riseH" && "$timeH" -lt "$setH" ]]; then
-	# Sunrise
-	if [[ "$timeH" -ge $((riseH+1)) || "$timeM" -ge "$riseM" ]]; then
-		if [ $# -eq 0 ]; then # If no arguments provided
-			darkMode off
-		else
-			darkMode off "$1" "$2"
-		fi
+if [[ $nowMin -lt $riseMin || $nowMin -ge $setMin ]]; then
 	# Sunset
-	elif [[ "$timeH" -ge "$setH" && "$timeM" -ge "$setM" ]] || [[ "$timeH" -le "$riseH" && "$timeM" -lt "$riseM" ]]; then
-		if [ $# -eq 0 ]; then
-			darkMode on
-		else
-			darkMode on "$1" "$2"
-		fi
-	fi
-# Sunset
-elif [[ "$timeH" -ge 0 && "$timeH" -lt "$riseH" ]]; then
-	if [ $# -eq 0 ]; then
+	if [ $# -eq 0 ]; then # If no arguments provided
 		darkMode on
 	else
 		darkMode on "$1" "$2"
 	fi
-# Sunrise
-elif [[ "$timeH" -eq "$setH" && "$timeM" -lt "$setM" ]]; then
-	if [ $# -eq 0 ]; then
+else
+	# Sunrise
+	if [ $# -eq 0 ]; then # If no arguments provided
 		darkMode off
 	else
 		darkMode off "$1" "$2"
-	fi
-# Sunset
-else
-	if [ $# -eq 0 ]; then
-		darkMode on
-	else
-		darkMode on "$1" "$2"
 	fi
 fi
 
