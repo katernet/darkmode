@@ -283,6 +283,7 @@ if [ $# -gt 0 ]; then # If arguments provided
 		wifi # Wifi checker
 		if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
 			mkdir "$darkdir"
+			firstRun=1
 		fi
 		getTime "$1" "$2"
 		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then # If launch agents don't exist
@@ -297,8 +298,8 @@ if [ $# -gt 0 ]; then # If arguments provided
 else
 	wifi
 	if [ ! -d "$darkdir" ]; then
-		firstRun=1
 		mkdir "$darkdir"
+		firstRun=1
 		solar
 		launch
 	fi
@@ -325,8 +326,10 @@ else
 fi
 
 # Console installation message
-if [ $# -eq 0 ]; then
-	echo "Installation successful. Dark mode will enable at ""$2"" hrs."
-elif [ "$firstRun" = 1 ]; then # If first run of script
-	echo "Installation successful. Dark mode will enable at sunset."
+if [ "$firstRun" = 1 ]; then # If first run of script
+	if [ $# -eq 2 ]; then # Static times
+		echo "Installation successful. Dark mode will enable at ""$2"" hrs."
+	else
+		echo "Installation successful. Dark mode will enable at sunset."
+	fi
 fi
