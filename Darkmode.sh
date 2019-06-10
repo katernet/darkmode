@@ -129,7 +129,7 @@ solar() {
 	UPDATE solar SET time='$dst' WHERE id=3;
 EOF
 	# Log
-	echo "Solar query stored - Sunrise: ""$riseTL"" Sunset: ""$setTL""" | tee -a ~/Library/Logs/io.github.katernet.darkmode.log 1> /dev/null
+	echo "$(date +"%D %T") darkmode: Solar query stored - Sunrise: ""$riseTL"" Sunset: ""$setTL""" | tee -a ~/Library/Logs/io.github.katernet.darkmode.log 1> /dev/null
 }
 
 # Get time
