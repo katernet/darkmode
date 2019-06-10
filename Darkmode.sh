@@ -16,16 +16,16 @@ plistS=~/Library/LaunchAgents/io.github.katernet.darkmode.sunset.plist
 # Set dark mode - Sunrise = off Sunset = on
 darkMode() {
 	case $1 in
-		off) 
+		off)
 			# Disable dark mode
 			osascript -e '
-			tell application id "com.apple.systemevents"
-				tell appearance preferences
-					if dark mode is true then
-						set dark mode to false
-					end if
+				tell application id "com.apple.systemevents"
+					tell appearance preferences
+						if dark mode is true then
+							set dark mode to false
+						end if
+					end tell
 				end tell
-			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then # If Alfred installed
 				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
@@ -63,13 +63,13 @@ darkMode() {
 		on)
 			# Enable dark mode
 			osascript -e '
-			tell application id "com.apple.systemevents"
-				tell appearance preferences
-					if dark mode is false then
-						set dark mode to true
-					end if
+				tell application id "com.apple.systemevents"
+					tell appearance preferences
+						if dark mode is false then
+							set dark mode to true
+						end if
+					end tell
 				end tell
-			end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then
 				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
@@ -96,30 +96,26 @@ solar() {
 	# Get Night Shift solar times (UTC)
 	OSv=$(sw_vers -productVersion) # Get macOS version
 	if (( $(bc <<< "$(echo $OSv | cut -d '.' -f2) >= 15") == 1 )); then # macOS Catalina or higher
-		parentFolder=libexec
+		parentDir=libexec
 	elif (( $(bc <<< "$(echo $OSv | cut -d '.' -f2-) >= 12.4") == 1 )); then # Between macOS Sierra 10.12.4 and Catalina
-		parentFolder=bin
+		parentDir=bin
 	else # Below Sierra 10.12.4 (no Night Shift support)
 		echo "Your macOS version does not support Night Shift. Visit http://katernet.github.io/darkmode for details."
 		exit 1
 	fi
-	riseT=$(/usr/$parentFolder/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
-	setT=$(/usr/$parentFolder/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
-
+	riseT=$(/usr/$parentDir/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
+	setT=$(/usr/$parentDir/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
 	# Test for 12 or 24 hour format
 	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
 		formatT="%Y-%m-%d %H:%M:%S %p %z"
 	else
 		formatT="%Y-%m-%d %H:%M:%S %z"
 	fi
-    
 	# Convert to local time
 	riseTL=$(date -jf "$formatT" "$riseT" +"%H:%M")
 	setTL=$(date -jf "$formatT" "$setT" +"%H:%M")
-	
 	# Get daylight saving status (0/1)
 	dst=$(perl -e 'print ((localtime)[8])')
-
 	# Store values in database
 	sqlite3 "$darkdir"/solar.db <<EOF
 	CREATE TABLE IF NOT EXISTS solar (id INTEGER PRIMARY KEY, time VARCHAR(5));
@@ -140,7 +136,7 @@ getTime() {
 		riseM=$(echo "$1" | tail -c3 | sed 's/^0//')
 		setH=$(echo "$2" | head -c2 | sed 's/^0//')
 		setM=$(echo "$2" | tail -c3 | sed 's/^0//')
-	else 
+	else
 		# Get sunrise and sunset hrs and mins from database.
 		riseH=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | head -c2 | sed 's/^0//')
 		riseM=$(sqlite3 "$darkdir"/solar.db 'SELECT time FROM solar WHERE id=1;' "" | tail -c3 | sed 's/^0//')
@@ -299,7 +295,7 @@ else
 	wifi
 	if [ ! -d "$darkdir" ]; then
 		firstRun=1
-		mkdir "$darkdir" 
+		mkdir "$darkdir"
 		solar
 		launch
 	fi
@@ -314,36 +310,36 @@ if [[ "$timeH" -ge "$riseH" && "$timeH" -lt "$setH" ]]; then
 	if [[ "$timeH" -ge $((riseH+1)) || "$timeM" -ge "$riseM" ]]; then
 		if [ $# -eq 0 ]; then # If no arguments provided
 			darkMode off
-		else 
+		else
 			darkMode off "$1" "$2"
 		fi
-	# Sunset	
-	elif [[ "$timeH" -ge "$setH" && "$timeM" -ge "$setM" ]] || [[ "$timeH" -le "$riseH" && "$timeM" -lt "$riseM" ]]; then 
+	# Sunset
+	elif [[ "$timeH" -ge "$setH" && "$timeM" -ge "$setM" ]] || [[ "$timeH" -le "$riseH" && "$timeM" -lt "$riseM" ]]; then
 		if [ $# -eq 0 ]; then
 			darkMode on
-		else 
+		else
 			darkMode on "$1" "$2"
 		fi
 	fi
-# Sunset		
+# Sunset
 elif [[ "$timeH" -ge 0 && "$timeH" -lt "$riseH" ]]; then
 	if [ $# -eq 0 ]; then
 		darkMode on
-	else 
+	else
 		darkMode on "$1" "$2"
 	fi
-# Sunrise	
+# Sunrise
 elif [[ "$timeH" -eq "$setH" && "$timeM" -lt "$setM" ]]; then
 	if [ $# -eq 0 ]; then
 		darkMode off
-	else 
+	else
 		darkMode off "$1" "$2"
 	fi
-# Sunset	
+# Sunset
 else
 	if [ $# -eq 0 ]; then
 		darkMode on
-	else 
+	else
 		darkMode on "$1" "$2"
 	fi
 fi
