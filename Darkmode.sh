@@ -328,5 +328,5 @@ fi
 if [ $# -eq 0 ]; then
 	echo "Installation successful. Dark mode will enable at ""$2"" hrs."
 elif [ "$firstRun" = 1 ]; then # If first run of script
-		echo "Installation successful. Dark mode will enable at sunset."
+	echo "Installation successful. Dark mode will enable at sunset."
 fi
