@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.9b7
+## Author: katernet ## Version 1.9b8
 
 ## Global variables ##
 alfredTheme='Alfred' # Set Alfred themes
@@ -31,7 +31,7 @@ darkMode() {
 				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
 				osascript -e 'tell application "Alfred '"$v"'" to set theme "'"$alfredTheme"'"' 2> /dev/null # Set Alfred default theme
 			fi
-			if [ -f "$plistR" ] || [ -f "$plistS" ]; then # Prevent uninstaller from continuing
+			if [ -d "$darkdir" ]; then # Prevent uninstaller from continuing
 				# Run solar query
 				if [ $# -eq 1 ] || [ -z "$firstRun" ]; then	# If no static time arguments or not first run of script
 					if [ "$(date +%u)" = 1 ]; then # Run solar query on first day of week
@@ -94,16 +94,16 @@ darkMode() {
 solar() {
 	# Get Night Shift solar times (UTC)
 	OSv=$(sw_vers -productVersion) # Get macOS version
-	if (( $(bc <<< "$(echo $OSv | cut -d '.' -f2) >= 15") == 1 )); then # macOS Catalina or higher
+	if (( $(bc <<< "$(echo "$OSv" | cut -d '.' -f2) >= 15") == 1 )); then # macOS Catalina or higher
 		parentDir=libexec
-	elif (( $(bc <<< "$(echo $OSv | cut -d '.' -f2-) >= 12.4") == 1 )); then # Between macOS Sierra 10.12.4 and Catalina
+	elif (( $(bc <<< "$(echo "$OSv" | cut -d '.' -f2-) >= 12.4") == 1 )); then # Between macOS Sierra 10.12.4 and Catalina
 		parentDir=bin
 	else # Below Sierra 10.12.4 (no Night Shift support)
-		echo "Your macOS version does not support Night Shift. Visit http://katernet.github.io/darkmode for details."
+		echo "Your macOS version does not support Night Shift. For details visit http://katernet.github.io/darkmode"
 		exit 1
 	fi
-	riseT=$(/usr/$parentDir/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
-	setT=$(/usr/$parentDir/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
+	riseT=$(/usr/"$parentDir"/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
+	setT=$(/usr/"$parentDir"/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
 	# Test for 12 or 24 hour format
 	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
 		formatT="%Y-%m-%d %H:%M:%S %p %z"
@@ -217,7 +217,7 @@ wifi() {
 		sleep 1
 		if [ $t -eq 30 ]; then
 			echo "Wifi connection timeout." | tee >(log)
-			echo "Night Shift requires Wifi. Visit http://katernet.github.io/darkmode for details."
+			echo "Night Shift requires Wifi. For details visit http://katernet.github.io/darkmode"
 			exit 1
 		fi
 	done
@@ -231,8 +231,9 @@ unstl() {
 	# Check if darkmode files exist and move to Trash
 	if [ -d "$darkdir" ]; then
 		if [ -d ~/.Trash/darkmode ]; then
-			mv "$darkdir" "$(dirname "$darkdir")"/darkmode"$(date +%H%M%S)"
-			darkdird=$(echo "$(dirname "$darkdir")"/darkmode*)
+			time=$(date +%H%M%S)
+			mv "$darkdir" "$(dirname "$darkdir")"/darkmode_"$time" # Add date to darkdir
+			darkdird=$(find "$(dirname "$darkdir")"/darkmode_"$time" -type d)
 			mv "$darkdird" ~/.Trash
 		else
 			mv "$darkdir" ~/.Trash
@@ -246,7 +247,6 @@ unstl() {
 		mv ~/Library/Logs/io.github.katernet.darkmode.log ~/.Trash
 	fi
 	darkMode off
-	echo "Uninstall successful."
 }
 
 # Error logging
@@ -267,12 +267,10 @@ if [ "$1" == '/u' ]; then # Shell parameter
 	error=$? # Get exit code from unstl()
 	if [ $error -ne 0 ]; then # If exit code not equal to 0
 		echo "Uninstall failed! For manual uninstall steps visit https://github.com/katernet/darkmode/issues/1"
-		read -rp "Open link in your browser? [y/n] " prompt
-		if [[ $prompt =~ [yY](es)* ]]; then
-			open https://github.com/katernet/darkmode/issues/1
-		fi
 		exit $error
 	fi
+	echo "Uninstall successful."
+	echo "darkmode files have been sent to your Trash."
 	exit 0
 fi
 
@@ -282,13 +280,13 @@ if [ $# -gt 0 ]; then # If arguments provided
 	if [ $# -eq 2 ] && (( $1 >= 0 && $1 <= 2400 )) && (( $2 >= 0 && $2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
 		wifi # Wifi checker
 		if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
-			mkdir "$darkdir"
-			firstRun=1
+			mkdir "$darkdir" # Create darkmode directory
+			firstRun=1 # Set first run of script
+			if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then # If launch agents don't exist
+				launch "$1" "$2"
+			fi
 		fi
 		getTime "$1" "$2"
-		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then # If launch agents don't exist
-			launch "$1" "$2"
-		fi
 	else
 		echo "Error: Invalid arguments. Usage: ./darkmode.sh HHMM HHMM"
 		echo "Exiting."
@@ -300,8 +298,10 @@ else
 	if [ ! -d "$darkdir" ]; then
 		mkdir "$darkdir"
 		firstRun=1
+		if [ ! -f "$plistR" ] || [ ! -f "$plistS" ]; then
+			launch
+		fi
 		solar
-		launch
 	fi
 	getTime
 fi
@@ -328,8 +328,10 @@ fi
 # Console installation message
 if [ "$firstRun" = 1 ]; then # If first run of script
 	if [ $# -eq 2 ]; then # Static times
-		echo "Installation successful. Dark mode will enable at ""$2"" hrs."
+		echo "Installation successful."
+		echo "Dark Mode will enable at ""$2"" hrs."
 	else
-		echo "Installation successful. Dark mode will enable at sunset."
+		echo "Installation successful."
+		echo "Dark Mode will enable at sunset."
 	fi
 fi
