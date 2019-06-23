@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet ## Version 1.9b8
+## Author: katernet.github.io ## Version 2.0RC
 
 ## Global variables ##
 alfredTheme='Alfred' # Set Alfred themes
@@ -71,10 +71,10 @@ darkMode() {
 				end tell
 			'
 			if ls /Applications/Alfred*.app >/dev/null 2>&1; then
-				v=$(basename /Applications/Alfred*.app | tr -dc '0-9') # Get Alfred version number
+				v=$(basename /Applications/Alfred*.app | tr -dc '0-9')
 				osascript -e 'tell application "Alfred '"$v"'" to set theme "'"$alfredDarkTheme"'"' 2> /dev/null # Set Alfred dark theme
 			fi
-			# Get sunrise launch agent start interval
+			# Get sunrise launch agent start interval time
 			plistRH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistR" 2> /dev/null)
 			plistRM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistR" 2> /dev/null)
 			if [ -z "$plistRH" ] && [ -z "$plistRM" ]; then
@@ -104,7 +104,7 @@ solar() {
 	fi
 	riseT=$(/usr/"$parentDir"/corebrightnessdiag nightshift-internal | grep nextSunrise | cut -d \" -f2)
 	setT=$(/usr/"$parentDir"/corebrightnessdiag nightshift-internal | grep nextSunset | cut -d \" -f2)
-	# Test for 12 or 24 hour format
+	# Test for 12 hour format
 	if [[ $riseT == *M* ]] || [[ $setT == *M* ]]; then
 		formatT="%Y-%m-%d %H:%M:%S %p %z"
 	else
@@ -155,7 +155,7 @@ getTime() {
 launch() {
 	shdir="$(cd "$(dirname "$0")" && pwd)" # Get script path
 	cp -p "$shdir"/darkmode.sh "$darkdir"/ # Copy script to darkmode directory
-	mkdir ~/Library/LaunchAgents 2> /dev/null; cd "$_" || return # Create LaunchAgents directory (if required) and cd there
+	mkdir -p ~/Library/LaunchAgents; cd "$_" || return # Create LaunchAgents directory (if required) and cd there
 	# Setup launch agent plists
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunrise" "$plistR" 1> /dev/null
 	/usr/libexec/PlistBuddy -c "Add :RunAtLoad bool true" "$plistR"
@@ -213,10 +213,10 @@ wifi() {
 	t=0
 	while [[ "$wStatus" != "running" ]]; do
 		t=$((t+1))
-		wStatus=$(/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | sed -n 5p | awk '{print $2}')
+		wStatus=$(/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | sed -n 5p | awk '{print $2}') # Get wifi running status
 		sleep 1
 		if [ $t -eq 30 ]; then
-			echo "Wifi connection timeout." | tee >(log)
+			echo "Wifi timeout." | tee >(log)
 			echo "Night Shift requires Wifi. For details visit http://katernet.github.io/darkmode"
 			exit 1
 		fi
@@ -230,6 +230,7 @@ unstl() {
 	launchctl unload "$plistS"
 	# Check if darkmode files exist and move to Trash
 	if [ -d "$darkdir" ]; then
+		# If already exists in Trash then append date
 		if [ -d ~/.Trash/darkmode ]; then
 			time=$(date +%H%M%S)
 			mv "$darkdir" "$(dirname "$darkdir")"/darkmode_"$time" # Add date to darkdir
