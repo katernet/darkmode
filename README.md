@@ -6,7 +6,9 @@ This shell script gets the sunrise and sunset times from Night Shift and automat
 
 Or you can supply your own sunrise and sunset 24H times by passing arguments. Example: 0600 1800
 
-##### Mojave
+News: macOS Catalina includes an 'Auto' Dark Mode and so basically there's no point in using this 😋 however, if you're on an earlier macOS release or you're a fan of setting your own Dark Mode schedules, then this is just for you!
+
+##### Mojave and later
 ![Mojave](resources/mojave.gif "Mojave Dark Mode")
 
 ##### High Sierra and below
@@ -15,17 +17,15 @@ Or you can supply your own sunrise and sunset 24H times by passing arguments. Ex
 ### Usage
 ```
 $ ./darkmode.sh
-```
 
 OR
 
-```
 $ ./darkmode.sh HHMM HHMM
 ```
- 
+
 ### Notes
 
-Compatible with macOS Mojave Dark Mode. Press OK to the security dialogs to allow control to System Events that appear when first running the script.
+Compatible with macOS Mojave and later Dark Mode. Press OK to the security dialogs to allow control to System Events that appear when first running the script.
 
 Night Shift requires Wifi and "Setting Timezone" enabled in System Preferences > Security & Privacy > Location Services > System Services > Details.
 
@@ -35,4 +35,4 @@ If you have a custom Alfred theme, you can change the name of the themes in the 
 
 A log file is stored in ~/Library/Logs which logs solar time changes and script errors.
 
-To uninstall: $ ./darkmode.sh /u
+To uninstall: ```$ ./darkmode.sh /u```
