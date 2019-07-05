@@ -1,5 +1,11 @@
 # darkmode
 
+<p align="center">
+	<a href="https://github.com/katernet/darkmode/releases/latest"><img src="https://img.shields.io/badge/download-latest-brightgreen.svg" alt="download"></a>
+	<img src="https://img.shields.io/badge/platform-macOS-ab69b1.svg" alt="platform">
+	<img src="https://img.shields.io/github/downloads/katernet/darkmode/total.svg">
+</p>
+
 Set macOS dark mode at sunset. If you have Alfred installed, the dark theme will also be set.
 
 This shell script gets the sunrise and sunset times from Night Shift and automates the setting up of two user launch agents for sunrise and sunset, which then take over running the script thereafter. If your mac was asleep/off during the solar times, launchd will run the script when you're next logged in!
