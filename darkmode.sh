@@ -2,7 +2,7 @@
 #
 ## macOS Dark Mode at sunset
 ## Solar times pulled from Night Shift
-## Author: katernet.github.io ## Version 2.0RC
+## Author: katernet.github.io ## Version 2.1b
 
 ## Global variables ##
 alfredTheme='Alfred' # Set Alfred themes
@@ -33,7 +33,7 @@ darkMode() {
 			fi
 			if [ -d "$darkdir" ]; then # Prevent uninstaller from continuing
 				# Run solar query
-				if [ $# -eq 1 ] || [ -z "$firstRun" ]; then	# If no static time arguments or not first run of script
+				if [ $# -eq 1 ] && [ -z "$firstRun" ]; then # If no static time arguments and not first run of script
 					if [ "$(date +%u)" = 1 ]; then # Run solar query on first day of week
 						solar
 					else
@@ -47,8 +47,8 @@ darkMode() {
 				# Get sunset launch agent start interval time
 				plistSH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistS" 2> /dev/null)
 				plistSM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistS" 2> /dev/null)
-				if [ -z "$plistSH" ] && [ -z "$plistSM" ]; then # If plist solar time vars are empty
-					editPlist add "$setH" "$setM" "$plistS" # Run add solar time plist function
+				if [ -z "$plistSH" ] || [ -z "$plistSM" ]; then # If plist solar time vars are empty
+					editPlist add "$setH" "$setM" "$plistS" "$plistR" # Run add solar time plist function
 				elif [[ "$plistSH" -ne "$setH" ]] || [[ "$plistSM" -ne "$setM" ]]; then # If launch agent times and solar times differ
 					# Run update solar time plist
 					if [ $# -eq 3 ]; then
@@ -77,8 +77,8 @@ darkMode() {
 			# Get sunrise launch agent start interval time
 			plistRH=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$plistR" 2> /dev/null)
 			plistRM=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$plistR" 2> /dev/null)
-			if [ -z "$plistRH" ] && [ -z "$plistRM" ]; then
-				editPlist add "$riseH" "$riseM" "$plistR"
+			if [ -z "$plistRH" ] || [ -z "$plistRM" ]; then
+				editPlist add "$riseH" "$riseM" "$plistR" "$plistS"
 			elif [[ "$plistRH" -ne "$riseH" ]] || [[ "$plistRM" -ne "$riseM" ]]; then
 				if [ $# -eq 3 ]; then
 					editPlist update "$riseH" "$riseM" "$plistR" "$2" "$3"
@@ -92,6 +92,7 @@ darkMode() {
 
 # Solar query
 solar() {
+	[ "$solar" = "no" ] && return # Solar query has already run
 	# Get Night Shift solar times (UTC)
 	OSv=$(sw_vers -productVersion) # Get macOS version
 	if (( $(bc <<< "$(echo "$OSv" | cut -d '.' -f2) >= 15") == 1 )); then # macOS Catalina or higher
@@ -160,10 +161,7 @@ launch() {
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunrise" "$plistR" 1> /dev/null
 	/usr/libexec/PlistBuddy -c "Add :RunAtLoad bool true" "$plistR"
 	/usr/libexec/PlistBuddy -c "Add :Label string io.github.katernet.darkmode.sunset" "$plistS" 1> /dev/null
-	if [ $# -eq 0 ]; then # No arguments provided - solar
-		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
-		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
-	elif [ $# -eq 2 ]; then # If static time arguments provided
+	if [ $# -eq 2 ]; then # If static time arguments provided
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments array" "$plistR"
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:0 string ${darkdir}/darkmode.sh" "$plistR"
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:1 string $1" "$plistR"
@@ -172,37 +170,57 @@ launch() {
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:0 string ${darkdir}/darkmode.sh" "$plistS"
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:1 string $1" "$plistS"
 		/usr/libexec/PlistBuddy -c "Add :ProgramArguments:2 string $2" "$plistS"
+	else
+		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistR"
+		/usr/libexec/PlistBuddy -c "Add :Program string ${darkdir}/darkmode.sh" "$plistS"
 	fi
-	# Load launch agents
-	launchctl load "$plistR"
-	launchctl load "$plistS"
+}
+
+# Reload launch agent
+relaunch() {
+	# Wait until launchctl print command fails - launch agent has unloaded
+	while launchctl print gui/"$uid"/io.github.katernet.darkmode."$stage1" >/dev/null 2>&1; do
+		true
+	done
+	launchctl load "$1"
 }
 
 # Edit launch agent solar times
 editPlist() {
+	stage1=$(echo "$4" | cut -d'.' -f5) # Get stage of plist - sunrise/sunset
+	stage2=$(echo "$5" | cut -d'.' -f5)
 	case $1 in
 		add)
-			# Unload launch agent
-			launchctl unload "$4" 2> /dev/null
+			# Unload launch agent if running
+			if launchctl list | grep io.github.katernet."$stage1" >/dev/null 2>&1; then
+				launchctl unload "$4"
+			fi
 			# Add solar times to launch agent plist
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Hour integer $2" "$4"
 			/usr/libexec/PlistBuddy -c "Add :StartCalendarInterval:Minute integer $3" "$4"
-			# Load launch agent
-			launchctl load "$4"
+			# Load launch agents if required
+			if ! launchctl list | grep io.github.katernet.darkmode."$stage1" >/dev/null 2>&1 || ! launchctl list | grep io.github.katernet.darkmode."$stage2" >/dev/null 2>&1; then
+				launchctl load "$4"
+				launchctl load "$5"
+			fi
 			;;
 		update)
-			# Unload launch agent
-			launchctl unload "$4"
-			sleep 5 # Delay to allow time for unload
+			solar=no # Prevent solar query running again
+			uid=$(id -u) # Get user ID of logged in user
+			state=$(launchctl print gui/"$uid"/io.github.katernet.darkmode."$stage1" | grep state | xargs | cut -d' ' -f3) # Get running state of launch agent
+			if [ "$state" = "running" ]; then # Launch agent is relaunching
+				return
+			else
+				launchctl unload "$4" # Unload launch agent
+			fi
 			# Update launch agent plist solar times
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Hour $2" "$4"
 			/usr/libexec/PlistBuddy -c "Set :StartCalendarInterval:Minute $3" "$4"
-			if [ $# -eq 6 ]; then
+			if [ $# -eq 6 ]; then # Static times
 				/usr/libexec/PlistBuddy -c "Set :ProgramArguments:1 $5" "$4"
 				/usr/libexec/PlistBuddy -c "Set :ProgramArguments:2 $6" "$4"
 			fi
-			# Load launch agent
-			launchctl load "$4"
+			relaunch "$4"
 			;;
 	esac
 }
@@ -273,13 +291,16 @@ if [ "$1" == '/u' ]; then # Shell parameter
 	echo "Uninstall successful."
 	echo "darkmode files have been sent to your Trash."
 	exit 0
+elif [[ $1 =~ '/' || $1 =~ u ]]; then
+	echo "Error: Invalid argument. Usage: ./darkmode.sh /u"
+	echo "Exiting"
+	exit 1
 fi
 
 # Static time arguments
-if [ $# -gt 0 ]; then # If arguments provided
+if [ $# -eq 2 ]; then # Static time arguments provided
 	# Check arguments provided are in 24H format
-	if [ $# -eq 2 ] && (( $1 >= 0 && $1 <= 2400 )) && (( $2 >= 0 && $2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
-		wifi # Wifi checker
+	if (( $1 >= 0 && $1 <= 2400 )) && (( $2 >= 0 && $2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
 		if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
 			mkdir "$darkdir" # Create darkmode directory
 			firstRun=1 # Set first run of script
@@ -289,13 +310,13 @@ if [ $# -gt 0 ]; then # If arguments provided
 		fi
 		getTime "$1" "$2"
 	else
-		echo "Error: Invalid arguments. Usage: ./darkmode.sh HHMM HHMM"
-		echo "Exiting."
+		echo "Error: Invalid time arguments. Usage: ./darkmode.sh HHMM HHMM"
+		echo "Exiting"
 		exit 1
 	fi
 # No arguments - Solar
 else
-	wifi
+	wifi # Wifi checker
 	if [ ! -d "$darkdir" ]; then
 		mkdir "$darkdir"
 		firstRun=1
@@ -312,14 +333,14 @@ fi
 # Solar conditions
 if [[ $nowMin -lt $riseMin || $nowMin -ge $setMin ]]; then
 	# Sunset
-	if [ $# -eq 0 ]; then # If no arguments provided
+	if [ $# -eq 0 ]; then # If no arguments provided - Solar
 		darkMode on
 	else
-		darkMode on "$1" "$2"
+		darkMode on "$1" "$2" # Static times
 	fi
 else
 	# Sunrise
-	if [ $# -eq 0 ]; then # If no arguments provided
+	if [ $# -eq 0 ]; then
 		darkMode off
 	else
 		darkMode off "$1" "$2"
