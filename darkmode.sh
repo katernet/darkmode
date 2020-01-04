@@ -205,7 +205,7 @@ editPlist() {
 			fi
 			;;
 		update)
-			solar=no # Prevent solar query running again
+			[ "$(date +%u)" = 1 ] && solar=no # Prevent solar query running again
 			uid=$(id -u) # Get user ID of logged in user
 			state=$(launchctl print gui/"$uid"/io.github.katernet.darkmode."$stage1" | grep state | xargs | cut -d' ' -f3) # Get running state of launch agent
 			if [ "$state" = "running" ]; then # Launch agent is relaunching
