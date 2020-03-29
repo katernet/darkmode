@@ -278,7 +278,7 @@ fi
 # Static time arguments
 if [ $# -gt 0 ]; then # If arguments provided
 	# Check arguments provided are in 24H format
-	if [ $# -eq 2 ] && (( $1 >= 0 && $1 <= 2400 )) && (( $2 >= 0 && $2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
+	if [ $# -eq 2 ] && (( 10#$1 >= 0 && 10#$1 <= 2400 )) && (( 10#$2 >= 0 && 10#2 <= 2400 )) && [[ ${#1} -gt 3 && ${#2} -gt 3 ]]; then
 		wifi # Wifi checker
 		if [ ! -d "$darkdir" ]; then # If darkmode directory doesn't exist
 			mkdir "$darkdir" # Create darkmode directory
