@@ -12,7 +12,7 @@ This shell script gets the sunrise and sunset times from Night Shift and automat
 
 Or you can supply your own sunrise and sunset 24H times by passing arguments. Example: 0600 1800
 
-News: macOS Catalina includes an 'Auto' Dark Mode and so basically there's no point in using this 😋 however, if you're on an earlier macOS release or you're a fan of setting your own Dark Mode schedules, then this is just for you!
+News: macOS Catalina includes an 'Auto' Dark Mode and the current version of Alfred (4.0.3+) remembers the theme selected for the light/dark mode being used when changing the theme preference (switch to the appearance in System preferences, change the Alfred theme accordingly, and repeat for the other one before then returning the system preference to Auto after they've been set.) Basically, there's no point in using this if you're up-to-date 😋. However, if you're on an earlier macOS release or you're a fan of setting your own Dark Mode schedules, then this is just for you!
 
 ##### Mojave and later
 ![Mojave](resources/mojave.gif "Mojave Dark Mode")
